@@ -3,7 +3,8 @@
 # Installing missing libraries
 
 list.of.packages <- c('modelsummary', 'strucchange', 'stargazer', 'sandwich', 'quantmod',
-                      'tseries', 'ggplot2', 'ggrepel', 'lmtest', 'Synth', 'dplyr', 'MSwM')
+                      'rngtools', 'tseries', 'ggplot2', 'ggrepel', 'future', 'xtable',
+                      'tibble', 'lmtest', 'Synth', 'dplyr', 'tidyr', 'MSwM')
 
 new.packages <- list.of.packages[!(list.of.packages %in% installed.packages()[,'Package'])]
 
@@ -13,6 +14,8 @@ if (length(new.packages) > 0) {
   
 }
 
+ifelse('synthdid' %in% installed.packages()[,'Package'], print('::synthdid already installed::'), install_github('synth-inference/synthdid'))
+
 # Loading libraries
 
 library(modelsummary)
@@ -20,15 +23,30 @@ library(strucchange)
 library(stargazer)
 library(sandwich)
 library(quantmod)
+library(synthdid)
+library(rngtools)
 library(tseries)
 library(ggplot2)
 library(ggrepel)
+library(future)
+library(xtable)
+library(tibble)
 library(lmtest)
 library(Synth)
 library(dplyr)
+library(tidyr)
 library(MSwM)
 
 # Get data with quantmod
+
+##### NOTES #####
+
+# these are the top 100 tech companies by market cap on 8/27/2024 when data was obtained
+
+# the twelve symbols that start with numbers or contain decimals were omitted due to different time series lengths
+# (different holidays off which could affect prices; missing observations restricting sample; changes in price over different time periods)
+
+# https://companiesmarketcap.com/tech/largest-tech-companies-by-market-cap/
 
 #symbols.to.get <- c('CRWD', 'AAPL', 'NVDA', 'MSFT', 'GOOG', 'AMZN', 'META', 'TSM', 'AVGO', 'TSLA',
 #                    'TCEHY', 'ORCL', '005930.KS', 'ASML', 'NFLX', 'SAP', 'CRM', 'ADBE', 'AMD', 'CSCO',
@@ -38,7 +56,7 @@ library(MSwM)
 #                    '2317.TW', 'EQIX', 'ABNB', 'CDNS', 'PYPL', 'WDAY', 'PLTR', 'SPOT', 'CSU.TO', '7974.T',
 #                    'NXPI', 'XIACF', '2454.TW', 'MRVL', 'ROP', 'FTNT', 'ADSK', 'NTES', 'DASH', 'TTD',
 #                    'DSY.PA', 'COIN', 'SE', 'IFX.DE', 'TEL', 'MPWR', 'ADYEN.AS', 'IQV', 'FIS', 'MCHP',
-#                    'TEAM', 'JD', 'FICO', 'SQ', 'CPNG', 'WKL.AS', 'EA', 'DDOG', 'SNOW', 'DELTA.BK',
+#                    'TEAM', 'JD', 'FICO', 'XYZ', 'CPNG', 'WKL.AS', 'EA', 'DDOG', 'SNOW', 'DELTA.BK',
 #                    '6981.T', 'HPQ', 'GRMN', '7751.T', '2382.TW', '2308.TW', 'ON', 'ASM.AS', 'VEEV', 'SMCI')
 
 symbols.to.get <- c('CRWD', 'AAPL', 'NVDA', 'MSFT', 'GOOG', 'AMZN', 'META', 'TSM', 'AVGO', 'TSLA',
@@ -48,7 +66,7 @@ symbols.to.get <- c('CRWD', 'AAPL', 'NVDA', 'MSFT', 'GOOG', 'AMZN', 'META', 'TSM
                     'SHOP', 'INTC', 'SNPS', 'DELL', 'EQIX', 'ABNB', 'CDNS', 'PYPL', 'WDAY',
                     'PLTR', 'SPOT', 'NXPI', 'XIACF', 'MRVL', 'ROP', 'FTNT', 'ADSK', 'NTES',
                     'DASH', 'TTD', 'COIN', 'SE', 'TEL', 'MPWR', 'IQV', 'FIS', 'MCHP', 'TEAM', 'JD',
-                    'FICO', 'SQ', 'CPNG', 'EA', 'DDOG', 'SNOW', 'HPQ', 'GRMN', 'ON', 'VEEV', 'SMCI')
+                    'FICO', 'XYZ', 'CPNG', 'EA', 'DDOG', 'SNOW', 'HPQ', 'GRMN', 'ON', 'VEEV', 'SMCI')
 
 getSymbols(symbols.to.get, src = 'yahoo', from = as.Date('2024-01-01'), to = as.Date('2024-11-30'))
 
@@ -81,7 +99,7 @@ price <- c(coredata(CRWD[2:231,4]), coredata(AAPL[2:231,4]), coredata(NVDA[2:231
            coredata(NTES[2:231,4]), coredata(DASH[2:231,4]), coredata(TTD[2:231,4]), coredata(COIN[2:231,4]),
            coredata(SE[2:231,4]), coredata(TEL[2:231,4]), coredata(MPWR[2:231,4]),
            coredata(IQV[2:231,4]), coredata(FIS[2:231,4]), coredata(MCHP[2:231,4]), coredata(TEAM[2:231,4]), coredata(JD[2:231,4]),
-           coredata(FICO[2:231,4]), coredata(SQ[2:231,4]), coredata(CPNG[2:231,4]), coredata(EA[2:231,4]),
+           coredata(FICO[2:231,4]), coredata(XYZ[2:231,4]), coredata(CPNG[2:231,4]), coredata(EA[2:231,4]),
            coredata(DDOG[2:231,4]), coredata(SNOW[2:231,4]), coredata(HPQ[2:231,4]), coredata(GRMN[2:231,4]),
            coredata(ON[2:231,4]), coredata(VEEV[2:231,4]), coredata(SMCI[2:231,4]))
 
@@ -100,7 +118,7 @@ lag.price <- c(coredata(CRWD[1:230,4]), coredata(AAPL[1:230,4]), coredata(NVDA[1
                coredata(NTES[1:230,4]), coredata(DASH[1:230,4]), coredata(TTD[1:230,4]), coredata(COIN[1:230,4]),
                coredata(SE[1:230,4]), coredata(TEL[1:230,4]), coredata(MPWR[1:230,4]),
                coredata(IQV[1:230,4]), coredata(FIS[1:230,4]), coredata(MCHP[1:230,4]), coredata(TEAM[1:230,4]), coredata(JD[1:230,4]),
-               coredata(FICO[1:230,4]), coredata(SQ[1:230,4]), coredata(CPNG[1:230,4]), coredata(EA[1:230,4]),
+               coredata(FICO[1:230,4]), coredata(XYZ[1:230,4]), coredata(CPNG[1:230,4]), coredata(EA[1:230,4]),
                coredata(DDOG[1:230,4]), coredata(SNOW[1:230,4]), coredata(HPQ[1:230,4]), coredata(GRMN[1:230,4]),
                coredata(ON[1:230,4]), coredata(VEEV[1:230,4]), coredata(SMCI[1:230,4]))
 
@@ -119,7 +137,7 @@ volume <- c(coredata(CRWD[2:231,5]), coredata(AAPL[2:231,5]), coredata(NVDA[2:23
             coredata(NTES[2:231,5]), coredata(DASH[2:231,5]), coredata(TTD[2:231,5]), coredata(COIN[2:231,5]),
             coredata(SE[2:231,5]), coredata(TEL[2:231,5]), coredata(MPWR[2:231,5]), 
             coredata(IQV[2:231,5]), coredata(FIS[2:231,5]), coredata(MCHP[2:231,5]), coredata(TEAM[2:231,5]), coredata(JD[2:231,5]),
-            coredata(FICO[2:231,5]), coredata(SQ[2:231,5]), coredata(CPNG[2:231,5]), coredata(EA[2:231,5]),
+            coredata(FICO[2:231,5]), coredata(XYZ[2:231,5]), coredata(CPNG[2:231,5]), coredata(EA[2:231,5]),
             coredata(DDOG[2:231,5]), coredata(SNOW[2:231,5]), coredata(HPQ[2:231,5]), coredata(GRMN[2:231,5]),
             coredata(ON[2:231,5]), coredata(VEEV[2:231,5]), coredata(SMCI[2:231,5]))
 
@@ -138,7 +156,7 @@ lag.volume <- c(coredata(CRWD[1:230,5]), coredata(AAPL[1:230,5]), coredata(NVDA[
                 coredata(NTES[1:230,5]), coredata(DASH[1:230,5]), coredata(TTD[1:230,5]), coredata(COIN[1:230,5]),
                 coredata(SE[1:230,5]), coredata(TEL[1:230,5]), coredata(MPWR[1:230,5]), 
                 coredata(IQV[1:230,5]), coredata(FIS[1:230,5]), coredata(MCHP[1:230,5]), coredata(TEAM[1:230,5]), coredata(JD[1:230,5]),
-                coredata(FICO[1:230,5]), coredata(SQ[1:230,5]), coredata(CPNG[1:230,5]), coredata(EA[1:230,5]),
+                coredata(FICO[1:230,5]), coredata(XYZ[1:230,5]), coredata(CPNG[1:230,5]), coredata(EA[1:230,5]),
                 coredata(DDOG[1:230,5]), coredata(SNOW[1:230,5]), coredata(HPQ[1:230,5]), coredata(GRMN[1:230,5]),
                 coredata(ON[1:230,5]), coredata(VEEV[1:230,5]), coredata(SMCI[1:230,5]))
 
@@ -417,12 +435,18 @@ mod <- lm(gap ~ -1 + lag, data = gaps[3:nrow(gaps),])
 
 stargazer(mod, type = 'text')
 
-##### NOTES #####
+# Re-running the main analysis with synthdid
 
-# these are the top 100 tech companies by market cap on 8/27/2024 when data was obtained
+df$treated <- as.integer(df$symbol == 'CRWD') * as.integer(df$indx >= 136)
+sdidf <- df[,c('symbol', 'indx', 'price', 'treated')]
 
-# the twelve symbols that start with numbers or contain decimals were omitted due to different time series lengths
-# (different holidays off which could affect prices; missing observations restricting sample; changes in price over different time periods)
+setup <- panel.matrices(sdidf)
+tau.hat <- synthdid_estimate(setup$Y, setup$N0, setup$T0)
+#se <- sqrt(vcov(tau.hat, method = 'placebo'))
 
-# https://companiesmarketcap.com/tech/largest-tech-companies-by-market-cap/
+#synthdid_plot(tau.hat, facet.vertical = FALSE, control.name = 'Control',
+#              treated.name = 'CRWD', lambda.comparable = TRUE, se.method = 'none',
+#              trajectory.linetype = 1, line.width = .75, effect.curvature = -.4,
+#              trajectory.alpha = .7, effect.alpha = .7, diagram.alpha = 1, onset.alpha = .7) +
+#  theme(legend.position = c(.26,.07), legend.direction = 'horizontal')
 
